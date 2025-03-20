@@ -1,3 +1,6 @@
+import os
+import time
+
 def clear_screen():
     print("\033[H\033[J", end="")
 
@@ -20,3 +23,13 @@ class COLOR:
 def color_text(text, color):
     """Apply color to text"""
     return f"{color}{text}{COLOR.RESET}"
+
+def show_progress(src, dst, total_size, start_time, final=False):
+    """Show progress for file operations"""
+    if final:
+        elapsed = time.time() - start_time
+        speed = total_size / elapsed if elapsed > 0 else 0
+        print(f"\rCompleted in {elapsed:.2f}s ({format_size(speed)}/s)", end='')
+    else:
+        # For simplicity, we'll just show completion for now
+        pass

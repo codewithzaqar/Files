@@ -12,7 +12,7 @@ def main():
     
     while True:
         try:
-            command = input("FE> ").strip()
+            command = input("F> ").strip()
             if command:
                 command_history.append(command)
                 if len(command_history) > config.get('history_size', 10):
@@ -42,6 +42,7 @@ def show_help():
     pwd           - Show current path
     info <name>   - Show file/directory info
     copy <src> <dst> - Copy file or directory
+    move <src> <dst> - Move file or directory
     del <name>    - Delete file
     delmany <name1> <name2> ... - Delete multiple files
     mkdir <name>  - Create directory
