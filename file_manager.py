@@ -4,8 +4,9 @@ import datetime
 from utils import format_size, color_text, COLOR
 
 class FileManager:
-    def __init__(self):
+    def __init__(self, config):
         self.current_path = os.getcwd()
+        self.config = config
 
     def execute_command(self, command):
         parts = command.split(maxsplit=1)
@@ -23,8 +24,12 @@ class FileManager:
             self.copy_file(parts[1])
         elif cmd == "del" and len(parts) > 1:
             self.delete_file(parts[1])
+        elif cmd == "delmany" and len(parts) > 1:
+            self.delete_multiple(parts[1])
         elif cmd == "mkdir" and len(parts) > 1:
             self.make_directory(parts[1])
+        elif cmd == "rename" and len(parts) > 1:
+            self.rename_item(parts[1])
         elif cmd == "search" and len(parts) > 1:
             self.search_files(parts[1])
         elif cmd == "clear":
@@ -46,8 +51,9 @@ class FileManager:
                 return
                 
             print(f"\nDirectory: {self.current_path}")
-            print(f"{color_text('Type', COLOR.CYAN):<6} {color_text('Size', COLOR.CYAN):>10} {color_text('Modified', COLOR.CYAN):>20} {color_text('Name', COLOR.CYAN)}")
-            print(color_text("-" * 60, COLOR.GRAY))
+            headers = f"{'Type':<6} {'Size':>10} {'Modified':>20} {'Name'}"
+            print(color_text(headers, COLOR.CYAN) if self.config['use_colors'] else headers)
+            print(color_text("-" * 60, COLOR.GRAY) if self.config['use_colors'] else "-" * 60)
             
             item_list = []
             for item in items:
@@ -65,7 +71,8 @@ class FileManager:
                 color = COLOR.BLUE if item_type == "DIR" else COLOR.GREEN
                 size = format_size(stats.st_size)
                 mod_time = datetime.datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')
-                print(f"{color_text(item_type, color):<6} {size:>10} {mod_time:>20} {color_text(item, color)}")
+                line = f"{item_type:<6} {size:>10} {mod_time:>20} {item}"
+                print(color_text(line, color) if self.config['use_colors'] else line)
             print(f"\n{len(items)} item(s)")
         except Exception as e:
             print(f"Error listing directory: {str(e)}")
@@ -94,8 +101,9 @@ class FileManager:
                 
             stats = os.stat(full_path)
             item_type = "Directory" if os.path.isdir(full_path) else "File"
+            color = COLOR.YELLOW if self.config['use_colors'] else None
             
-            print(f"\nInfo for: {color_text(name, COLOR.YELLOW)}")
+            print(f"\nInfo for: {color_text(name, color) if color else name}")
             print(f"Type: {item_type}")
             print(f"Size: {format_size(stats.st_size)}")
             print(f"Created: {datetime.datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d %H:%M:%S')}")
@@ -131,6 +139,22 @@ class FileManager:
         except Exception as e:
             print(f"Error deleting file: {str(e)}")
 
+    def delete_multiple(self, args):
+        try:
+            names = args.split()
+            deleted = 0
+            for name in names:
+                full_path = os.path.join(self.current_path, name)
+                if os.path.exists(full_path) and not os.path.isdir(full_path):
+                    os.remove(full_path)
+                    print(f"Deleted {name}")
+                    deleted += 1
+                else:
+                    print(f"Skipped {name} - not found or is a directory")
+            print(f"Deleted {deleted} file(s)")
+        except Exception as e:
+            print(f"Error deleting files: {str(e)}")
+
     def make_directory(self, name):
         try:
             full_path = os.path.join(self.current_path, name)
@@ -141,6 +165,22 @@ class FileManager:
                 print("Directory already exists")
         except Exception as e:
             print(f"Error creating directory: {str(e)}")
+
+    def rename_item(self, args):
+        try:
+            old_name, new_name = args.split(maxsplit=1)
+            old_path = os.path.join(self.current_path, old_name)
+            new_path = os.path.join(self.current_path, new_name)
+            if os.path.exists(old_path):
+                if not os.path.exists(new_path):
+                    os.rename(old_path, new_path)
+                    print(f"Renamed {old_name} to {new_name}")
+                else:
+                    print("Destination name already exists")
+            else:
+                print("Source item not found")
+        except Exception as e:
+            print(f"Error renaming: {str(e)}")
 
     def search_files(self, args):
         try:
