@@ -2,7 +2,7 @@ import sys
 from file_manager import FileManager
 
 def main():
-    print("Welcome to Files v0.03")
+    print("Welcome to Files v0.04")
     print("Type 'help' for commands")
 
     file_manager = FileManager()
@@ -25,13 +25,14 @@ def main():
 def show_help():
     print("""
     Available commands:
-    dir           - List directory contents
+    dir [sort:size|name] - List directory contents (optional sorting)
     cd <path>     - Change directory
     pwd           - Show current path
     info <name>   - Show file/directory info
     copy <src> <dst> - Copy file
     del <name>    - Delete file
-    search <term> - Search for files
+    mkdir <name>  - Create directory
+    search <term> [-r] - Search for files (optional -r for recursive)
     clear         - Clear the screen
     exit          - Quit the program
     """)

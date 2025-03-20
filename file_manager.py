@@ -12,7 +12,7 @@ class FileManager:
         cmd = parts[0].lower() if parts else ""
         
         if cmd == "dir":
-            self.list_directory()
+            self.list_directory(parts[1] if len(parts) > 1 else "")
         elif cmd == "cd" and len(parts) > 1:
             self.change_directory(parts[1])
         elif cmd == "pwd":
@@ -23,6 +23,8 @@ class FileManager:
             self.copy_file(parts[1])
         elif cmd == "del" and len(parts) > 1:
             self.delete_file(parts[1])
+        elif cmd == "mkdir" and len(parts) > 1:
+            self.make_directory(parts[1])
         elif cmd == "search" and len(parts) > 1:
             self.search_files(parts[1])
         elif cmd == "clear":
@@ -31,8 +33,13 @@ class FileManager:
         else:
             print("Unknown command. Type 'help' for available commands")
 
-    def list_directory(self):
+    def list_directory(self, args):
         try:
+            sort_key = None
+            if args.startswith("sort:"):
+                sort_type = args.split("sort:")[1].lower()
+                sort_key = "size" if sort_type == "size" else "name" if sort_type == "name" else None
+
             items = os.listdir(self.current_path)
             if not items:
                 print("Directory is empty")
@@ -42,9 +49,18 @@ class FileManager:
             print(f"{color_text('Type', COLOR.CYAN):<6} {color_text('Size', COLOR.CYAN):>10} {color_text('Modified', COLOR.CYAN):>20} {color_text('Name', COLOR.CYAN)}")
             print(color_text("-" * 60, COLOR.GRAY))
             
+            item_list = []
             for item in items:
                 full_path = os.path.join(self.current_path, item)
                 stats = os.stat(full_path)
+                item_list.append((item, full_path, stats))
+
+            if sort_key == "size":
+                item_list.sort(key=lambda x: x[2].st_size, reverse=True)
+            elif sort_key == "name":
+                item_list.sort(key=lambda x: x[0].lower())
+
+            for item, full_path, stats in item_list:
                 item_type = "DIR" if os.path.isdir(full_path) else "FILE"
                 color = COLOR.BLUE if item_type == "DIR" else COLOR.GREEN
                 size = format_size(stats.st_size)
@@ -115,16 +131,43 @@ class FileManager:
         except Exception as e:
             print(f"Error deleting file: {str(e)}")
 
-    def search_files(self, term):
+    def make_directory(self, name):
         try:
-            print(f"\nSearching for '{term}'...")
+            full_path = os.path.join(self.current_path, name)
+            if not os.path.exists(full_path):
+                os.mkdir(full_path)
+                print(f"Created directory: {name}")
+            else:
+                print("Directory already exists")
+        except Exception as e:
+            print(f"Error creating directory: {str(e)}")
+
+    def search_files(self, args):
+        try:
+            parts = args.split()
+            term = parts[0]
+            recursive = "-r" in parts[1:] if len(parts) > 1 else False
+            
+            print(f"\nSearching for '{term}' {'recursively' if recursive else 'in current directory'}...")
             found = False
-            for item in os.listdir(self.current_path):
-                if term.lower() in item.lower():
-                    full_path = os.path.join(self.current_path, item)
-                    item_type = "DIR" if os.path.isdir(full_path) else "FILE"
-                    print(f"{item_type:<6} {item}")
-                    found = True
+            
+            if recursive:
+                for root, dirs, files in os.walk(self.current_path):
+                    for item in dirs + files:
+                        if term.lower() in item.lower():
+                            full_path = os.path.join(root, item)
+                            item_type = "DIR" if os.path.isdir(full_path) else "FILE"
+                            rel_path = os.path.relpath(full_path, self.current_path)
+                            print(f"{item_type:<6} {rel_path}")
+                            found = True
+            else:
+                for item in os.listdir(self.current_path):
+                    if term.lower() in item.lower():
+                        full_path = os.path.join(self.current_path, item)
+                        item_type = "DIR" if os.path.isdir(full_path) else "FILE"
+                        print(f"{item_type:<6} {item}")
+                        found = True
+            
             if not found:
                 print("No matches found")
         except Exception as e:
