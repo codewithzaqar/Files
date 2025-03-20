@@ -1,6 +1,7 @@
 import os
+import shutil
 import datetime
-from utils import format_size
+from utils import format_size, color_text, COLOR
 
 class FileManager:
     def __init__(self):
@@ -18,6 +19,12 @@ class FileManager:
             print(self.current_path)
         elif cmd == "info" and len(parts) > 1:
             self.show_info(parts[1])
+        elif cmd == "copy" and len(parts) > 1:
+            self.copy_file(parts[1])
+        elif cmd == "del" and len(parts) > 1:
+            self.delete_file(parts[1])
+        elif cmd == "search" and len(parts) > 1:
+            self.search_files(parts[1])
         elif cmd == "clear":
             from utils import clear_screen
             clear_screen()
@@ -32,16 +39,17 @@ class FileManager:
                 return
                 
             print(f"\nDirectory: {self.current_path}")
-            print(f"{'Type':<6} {'Size':>10} {'Modified':>20} {'Name'}")
-            print("-" * 60)
+            print(f"{color_text('Type', COLOR.CYAN):<6} {color_text('Size', COLOR.CYAN):>10} {color_text('Modified', COLOR.CYAN):>20} {color_text('Name', COLOR.CYAN)}")
+            print(color_text("-" * 60, COLOR.GRAY))
             
             for item in items:
                 full_path = os.path.join(self.current_path, item)
                 stats = os.stat(full_path)
                 item_type = "DIR" if os.path.isdir(full_path) else "FILE"
+                color = COLOR.BLUE if item_type == "DIR" else COLOR.GREEN
                 size = format_size(stats.st_size)
                 mod_time = datetime.datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')
-                print(f"{item_type:<6} {size:>10} {mod_time:>20} {item}")
+                print(f"{color_text(item_type, color):<6} {size:>10} {mod_time:>20} {color_text(item, color)}")
             print(f"\n{len(items)} item(s)")
         except Exception as e:
             print(f"Error listing directory: {str(e)}")
@@ -71,7 +79,7 @@ class FileManager:
             stats = os.stat(full_path)
             item_type = "Directory" if os.path.isdir(full_path) else "File"
             
-            print(f"\nInfo for: {name}")
+            print(f"\nInfo for: {color_text(name, COLOR.YELLOW)}")
             print(f"Type: {item_type}")
             print(f"Size: {format_size(stats.st_size)}")
             print(f"Created: {datetime.datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d %H:%M:%S')}")
@@ -79,3 +87,45 @@ class FileManager:
             print(f"Path: {full_path}")
         except Exception as e:
             print(f"Error getting info: {str(e)}")
+
+    def copy_file(self, args):
+        try:
+            src, dst = args.split(maxsplit=1)
+            src_path = os.path.join(self.current_path, src)
+            dst_path = os.path.join(self.current_path, dst)
+            if os.path.exists(src_path):
+                shutil.copy2(src_path, dst_path)
+                print(f"Copied {src} to {dst}")
+            else:
+                print("Source file not found")
+        except Exception as e:
+            print(f"Error copying file: {str(e)}")
+
+    def delete_file(self, name):
+        try:
+            full_path = os.path.join(self.current_path, name)
+            if os.path.exists(full_path):
+                if os.path.isdir(full_path):
+                    print("Cannot delete directories with 'del' command")
+                else:
+                    os.remove(full_path)
+                    print(f"Deleted {name}")
+            else:
+                print("File not found")
+        except Exception as e:
+            print(f"Error deleting file: {str(e)}")
+
+    def search_files(self, term):
+        try:
+            print(f"\nSearching for '{term}'...")
+            found = False
+            for item in os.listdir(self.current_path):
+                if term.lower() in item.lower():
+                    full_path = os.path.join(self.current_path, item)
+                    item_type = "DIR" if os.path.isdir(full_path) else "FILE"
+                    print(f"{item_type:<6} {item}")
+                    found = True
+            if not found:
+                print("No matches found")
+        except Exception as e:
+            print(f"Error searching: {str(e)}")

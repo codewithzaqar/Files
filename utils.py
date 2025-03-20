@@ -8,3 +8,15 @@ def format_size(size):
             return f"{size:.1f} {unit}"
         size /= 1024
     return f"{size:.1f} TB"
+
+class COLOR:
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    CYAN = '\033[96m'
+    GRAY = '\033[90m'
+    RESET = '\033[0m'
+
+def color_text(text, color):
+    """Apply color to text"""
+    return f"{color}{text}{COLOR.RESET}"
