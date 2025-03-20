@@ -8,6 +8,10 @@ class FileManager:
     def __init__(self, config):
         self.current_path = os.getcwd()
         self.config = config
+        self.commands = [
+            "dir", "cd", "pwd", "info", "copy", "move", "del", "delmany",
+            "mkdir", "rename", "search", "clear", "history", "exit"
+        ]
 
     def execute_command(self, command):
         parts = command.split(maxsplit=1)
@@ -48,11 +52,23 @@ class FileManager:
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
 
+    def get_command_suggestions(self, partial):
+        """Return command suggestions based on partial input"""
+        return [cmd for cmd in self.commands if cmd.startswith(partial.lower())]
+
     def list_directory(self, args):
         sort_key = None
-        if args.startswith("sort:"):
-            sort_type = args.split("sort:")[1].lower()
-            sort_key = "size" if sort_type == "size" else "name" if sort_type == "name" else None
+        type_filter = None
+        args_parts = args.split()
+        for arg in args_parts:
+            if arg.startswith("sort:"):
+                sort_type = arg.split("sort:")[1].lower()
+                sort_key = "size" if sort_type == "size" else "name" if sort_type == "name" else None
+            elif arg.startswith("type:"):
+                type_filter = arg.split("type:")[1].lower()
+                if type_filter not in ["file", "dir"]:
+                    print("Invalid type filter. Use 'file' or 'dir'.")
+                    return
 
         items = os.listdir(self.current_path)
         if not items:
@@ -68,6 +84,9 @@ class FileManager:
         for item in items:
             full_path = os.path.join(self.current_path, item)
             stats = os.stat(full_path)
+            item_type = "DIR" if os.path.isdir(full_path) else "FILE"
+            if type_filter and item_type.lower() != type_filter:
+                continue
             item_list.append((item, full_path, stats))
 
         if sort_key == "size":
@@ -82,7 +101,7 @@ class FileManager:
             mod_time = datetime.datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')
             line = f"{item_type:<6} {size:>10} {mod_time:>20} {item}"
             print(color_text(line, color) if self.config['use_colors'] else line)
-        print(f"\n{len(items)} item(s)")
+        print(f"\n{len(item_list)} item(s)")
 
     def change_directory(self, path):
         if path == "..":

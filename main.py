@@ -4,19 +4,30 @@ from config import load_config
 
 def main():
     config = load_config()
-    print(f"Welcome to Files v0.06 (Colors: {'on' if config['use_colors'] else 'off'})")
+    print(f"Welcome to Files v0.08 (Colors: {'on' if config['use_colors'] else 'off'})")
     print("Type 'help' for commands")
     
     file_manager = FileManager(config)
     command_history = []
+    aliases = config.get('aliases', {})
     
     while True:
         try:
             command = input("F> ").strip()
             if command:
+                # Handle tab completion simulation (suggest completions)
+                if command.endswith('??'):  # Using ?? as a tab simulation trigger
+                    base_cmd = command[:-2].strip()
+                    suggestions = file_manager.get_command_suggestions(base_cmd)
+                    if suggestions:
+                        print("Suggestions:", ", ".join(suggestions))
+                    continue
+                
+                # Store in history and apply aliases
                 command_history.append(command)
                 if len(command_history) > config.get('history_size', 10):
                     command_history.pop(0)
+                command = aliases.get(command, command)  # Apply alias if exists
             
             if command.lower() == "exit":
                 print("Goodbye!")
@@ -37,7 +48,7 @@ def main():
 def show_help():
     print("""
     Available commands:
-    dir [sort:size|name] - List directory contents (optional sorting)
+    dir [sort:size|name] [type:file|dir] - List contents (optional sorting and type filter)
     cd <path>     - Change directory
     pwd           - Show current path
     info <name>   - Show file/directory info
@@ -51,6 +62,8 @@ def show_help():
     clear         - Clear the screen
     history       - Show command history
     exit          - Quit the program
+          
+    Tip: Type '<command>??' for suggestions (simulated tab completion)
     """)
 
 if __name__ == "__main__":
