@@ -2,18 +2,18 @@ import sys
 from file_manager import FileManager
 
 def main():
-    print("Welcome to Files v0.01")
+    print("Welcome to Files v0.02")
     print("Type 'help' for commands")
 
     file_manager = FileManager()
 
     while True:
         try:
-            command = input("FE> ").strip().lower()
-            if command == "exit":
+            command = input("FE> ").strip()
+            if command.lower() == "exit":
                 print("Goodbye!")
                 break
-            elif command == "help":
+            elif command.lower() == "help":
                 show_help()
             else:
                 file_manager.execute_command(command)
@@ -25,10 +25,12 @@ def main():
 def show_help():
     print("""
     Available commands:
-    dir - List current directory contents
-    cd <path> - Change directory
-    pwd - Show current path
-    exit - Quit the program
+    dir           - List directory contents with details
+    cd <path>     - Change directory
+    pwd           - Show current path
+    info <name>   - Show file/directory info
+    clear         - Clear the screen
+    exit          - Quit the program
     """)
 
 if __name__ == "__main__":
