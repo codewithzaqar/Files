@@ -1,5 +1,6 @@
 import os
 import time
+import sys
 
 def clear_screen():
     print("\033[H\033[J", end="")
@@ -25,11 +26,15 @@ def color_text(text, color):
     return f"{color}{text}{COLOR.RESET}"
 
 def show_progress(src, dst, total_size, start_time, final=False):
-    """Show progress for file operations"""
+    """Show progress with percentage for file operations"""
     if final:
         elapsed = time.time() - start_time
         speed = total_size / elapsed if elapsed > 0 else 0
-        print(f"\rCompleted in {elapsed:.2f}s ({format_size(speed)}/s)", end='')
+        print(f"\r100% - Completed in {elapsed:.2f}s ({format_size(speed)}/s)", end='')
     else:
-        # For simplicity, we'll just show completion for now
-        pass
+        # Simulate progress for directories (not real-time due to shutil limitations)
+        elapsed = time.time() - start_time
+        if elapsed > 0:
+            processed = os.path.getsize(src) if os.path.isfile(src) else 0  # Simplified for demo
+            percent = min(100, int((processed / total_size) * 100) if total_size > 0 else 0)
+            print(f"\r{percent}% - Processing...", end='', flush=True)

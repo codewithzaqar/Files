@@ -2,6 +2,7 @@ import os
 import shutil
 import datetime
 import time
+import stat
 from utils import format_size, color_text, COLOR, show_progress
 
 class FileManager:
@@ -53,8 +54,34 @@ class FileManager:
             print(f"Unexpected error: {str(e)}")
 
     def get_command_suggestions(self, partial):
-        """Return command suggestions based on partial input"""
         return [cmd for cmd in self.commands if cmd.startswith(partial.lower())]
+
+    def get_dir_size(self, path):
+        """Calculate total size of a directory"""
+        total = 0
+        for dirpath, _, filenames in os.walk(path):
+            for filename in filenames:
+                total += os.path.getsize(os.path.join(dirpath, filename))
+        return total
+
+    def get_permissions(self, path):
+        """Get file/directory permissions in rwx format"""
+        st = os.stat(path)
+        mode = st.st_mode
+        perms = ''
+        # User permissions
+        perms += 'r' if mode & stat.S_IRUSR else '-'
+        perms += 'w' if mode & stat.S_IWUSR else '-'
+        perms += 'x' if mode & stat.S_IXUSR else '-'
+        # Group permissions
+        perms += 'r' if mode & stat.S_IRGRP else '-'
+        perms += 'w' if mode & stat.S_IWGRP else '-'
+        perms += 'x' if mode & stat.S_IXGRP else '-'
+        # Other permissions
+        perms += 'r' if mode & stat.S_IROTH else '-'
+        perms += 'w' if mode & stat.S_IWOTH else '-'
+        perms += 'x' if mode & stat.S_IXOTH else '-'
+        return perms
 
     def list_directory(self, args):
         sort_key = None
@@ -76,9 +103,9 @@ class FileManager:
             return
             
         print(f"\nDirectory: {self.current_path}")
-        headers = f"{'Type':<6} {'Size':>10} {'Modified':>20} {'Name'}"
+        headers = f"{'Type':<6} {'Size':>10} {'Modified':>20} {'Perms':<10} {'Name'}"
         print(color_text(headers, COLOR.CYAN) if self.config['use_colors'] else headers)
-        print(color_text("-" * 60, COLOR.GRAY) if self.config['use_colors'] else "-" * 60)
+        print(color_text("-" * 70, COLOR.GRAY) if self.config['use_colors'] else "-" * 70)
         
         item_list = []
         for item in items:
@@ -87,19 +114,21 @@ class FileManager:
             item_type = "DIR" if os.path.isdir(full_path) else "FILE"
             if type_filter and item_type.lower() != type_filter:
                 continue
-            item_list.append((item, full_path, stats))
+            size = self.get_dir_size(full_path) if item_type == "DIR" else stats.st_size
+            item_list.append((item, full_path, stats, size))
 
         if sort_key == "size":
-            item_list.sort(key=lambda x: x[2].st_size, reverse=True)
+            item_list.sort(key=lambda x: x[3], reverse=True)
         elif sort_key == "name":
             item_list.sort(key=lambda x: x[0].lower())
 
-        for item, full_path, stats in item_list:
+        for item, full_path, stats, size in item_list:
             item_type = "DIR" if os.path.isdir(full_path) else "FILE"
             color = COLOR.BLUE if item_type == "DIR" else COLOR.GREEN
-            size = format_size(stats.st_size)
+            size_str = format_size(size)
             mod_time = datetime.datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M')
-            line = f"{item_type:<6} {size:>10} {mod_time:>20} {item}"
+            perms = self.get_permissions(full_path)
+            line = f"{item_type:<6} {size_str:>10} {mod_time:>20} {perms:<10} {item}"
             print(color_text(line, color) if self.config['use_colors'] else line)
         print(f"\n{len(item_list)} item(s)")
 
@@ -123,11 +152,13 @@ class FileManager:
             
         stats = os.stat(full_path)
         item_type = "Directory" if os.path.isdir(full_path) else "File"
+        size = self.get_dir_size(full_path) if item_type == "Directory" else stats.st_size
         color = COLOR.YELLOW if self.config['use_colors'] else None
         
         print(f"\nInfo for: {color_text(name, color) if color else name}")
         print(f"Type: {item_type}")
-        print(f"Size: {format_size(stats.st_size)}")
+        print(f"Size: {format_size(size)}")
+        print(f"Permissions: {self.get_permissions(full_path)}")
         print(f"Created: {datetime.datetime.fromtimestamp(stats.st_ctime).strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Modified: {datetime.datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Path: {full_path}")
@@ -143,9 +174,7 @@ class FileManager:
         print(f"Copying {src} to {dst}...")
         start_time = time.time()
         if os.path.isdir(src_path):
-            total_size = sum(os.path.getsize(os.path.join(dirpath, filename)) 
-                           for dirpath, _, filenames in os.walk(src_path) 
-                           for filename in filenames)
+            total_size = self.get_dir_size(src_path)
             shutil.copytree(src_path, dst_path, dirs_exist_ok=True, 
                           copy_function=lambda src, dst: show_progress(src, dst, total_size, start_time))
             print(f"\nCopied directory {src} to {dst}")
@@ -165,16 +194,9 @@ class FileManager:
 
         print(f"Moving {src} to {dst}...")
         start_time = time.time()
-        if os.path.isdir(src_path):
-            total_size = sum(os.path.getsize(os.path.join(dirpath, filename)) 
-                           for dirpath, _, filenames in os.walk(src_path) 
-                           for filename in filenames)
-            shutil.move(src_path, dst_path)
-            show_progress(src_path, dst_path, total_size, start_time, final=True)
-        else:
-            total_size = os.path.getsize(src_path)
-            shutil.move(src_path, dst_path)
-            show_progress(src_path, dst_path, total_size, start_time, final=True)
+        total_size = self.get_dir_size(src_path) if os.path.isdir(src_path) else os.path.getsize(src_path)
+        shutil.move(src_path, dst_path)
+        show_progress(src_path, dst_path, total_size, start_time, final=True)
         print(f"Moved {src} to {dst}")
 
     def delete_file(self, name):
