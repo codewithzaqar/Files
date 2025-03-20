@@ -21,7 +21,7 @@ class FileManager:
         elif cmd == "info" and len(parts) > 1:
             self.show_info(parts[1])
         elif cmd == "copy" and len(parts) > 1:
-            self.copy_file(parts[1])
+            self.copy_item(parts[1])
         elif cmd == "del" and len(parts) > 1:
             self.delete_file(parts[1])
         elif cmd == "delmany" and len(parts) > 1:
@@ -112,18 +112,22 @@ class FileManager:
         except Exception as e:
             print(f"Error getting info: {str(e)}")
 
-    def copy_file(self, args):
+    def copy_item(self, args):
         try:
             src, dst = args.split(maxsplit=1)
             src_path = os.path.join(self.current_path, src)
             dst_path = os.path.join(self.current_path, dst)
             if os.path.exists(src_path):
-                shutil.copy2(src_path, dst_path)
-                print(f"Copied {src} to {dst}")
+                if os.path.isdir(src_path):
+                    shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+                    print(f"Copied directory {src} to {dst}")
+                else:
+                    shutil.copy2(src_path, dst_path)
+                    print(f"Copied file {src} to {dst}")
             else:
-                print("Source file not found")
+                print("Source item not found")
         except Exception as e:
-            print(f"Error copying file: {str(e)}")
+            print(f"Error copying item: {str(e)}")
 
     def delete_file(self, name):
         try:
