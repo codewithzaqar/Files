@@ -4,7 +4,7 @@ from config import load_config
 
 def main():
     config = load_config()
-    print(f"Welcome to Files v0.09 (Colors: {'on' if config['use_colors'] else 'off'})")
+    print(f"Welcome to Files v0.10 (Colors: {'on' if config['use_colors'] else 'off'})")
     print("Type 'help' for commands")
     
     file_manager = FileManager(config)
@@ -25,7 +25,20 @@ def main():
                 command_history.append(command)
                 if len(command_history) > config.get('history_size', 10):
                     command_history.pop(0)
+                
+                # Basic piping simulation with '|'
+                if '|' in command:
+                    commands = [cmd.strip() for cmd in command.split('|')]
+                    output = None
+                    for cmd in commands:
+                        cmd = aliases.get(cmd, cmd)
+                        output = file_manager.execute_command(cmd, output)
+                    if output:
+                        print(output)
+                    continue
+                
                 command = aliases.get(command, command)
+                file_manager.execute_command(command)
             
             if command.lower() == "exit":
                 print("Goodbye!")
@@ -36,8 +49,6 @@ def main():
                 print("\nCommand History:")
                 for i, cmd in enumerate(command_history, 1):
                     print(f"{i}. {cmd}")
-            else:
-                file_manager.execute_command(command)
         except KeyboardInterrupt:
             print("\nUse 'exit' to quit")
         except Exception as e:
@@ -52,16 +63,17 @@ def show_help():
     info <name>   - Show file/directory info (with permissions)
     copy <src> <dst> - Copy file or directory (with progress)
     move <src> <dst> - Move file or directory (with progress)
-    del <name>    - Delete file
-    delmany <name1> <name2> ... - Delete multiple files
+    del <name>    - Delete file or directory
+    delmany <name1> <name2> ... - Delete multiple files/directories
     mkdir <name>  - Create directory
     rename <old> <new> - Rename file/directory
-    search <term> [-r] - Search for files (optional -r for recursive)
+    search <term> [-r] [-c] - Search files (optional -r recursive, -c content)
     clear         - Clear the screen
     history       - Show command history
     exit          - Quit the program
     
-    Tip: Type '<command>??' for suggestions (simulated tab completion)
+    Tip: Type '<command>??' for suggestions
+    Pipe: Use '|' to chain commands (e.g., 'dir | search test')
     """)
 
 if __name__ == "__main__":
