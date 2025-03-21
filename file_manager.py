@@ -3,6 +3,7 @@ import shutil
 import datetime
 import time
 import stat
+import zipfile
 from utils import format_size, color_text, COLOR, show_progress
 
 class FileManager:
@@ -11,7 +12,8 @@ class FileManager:
         self.config = config
         self.commands = [
             "dir", "cd", "pwd", "info", "copy", "move", "del", "delmany",
-            "mkdir", "rename", "search", "clear", "history", "exit"
+            "mkdir", "rename", "search", "compress", "decompress", "clear",
+            "history", "interactive", "exit"
         ]
 
     def execute_command(self, command, piped_input=None):
@@ -42,6 +44,10 @@ class FileManager:
                 self.rename_item(parts[1])
             elif cmd == "search" and len(parts) > 1:
                 return self.search_files(parts[1], piped_input)
+            elif cmd == "compress" and len(parts) > 1:
+                self.compress_item(parts[1])
+            elif cmd == "decompress" and len(parts) > 1:
+                self.decompress_item(parts[1])
             elif cmd == "clear":
                 from utils import clear_screen
                 clear_screen()
@@ -55,8 +61,15 @@ class FileManager:
             print(f"Unexpected error: {str(e)}")
         return None
 
-    def get_command_suggestions(self, partial):
-        return [cmd for cmd in self.commands if cmd.startswith(partial.lower())]
+    def get_command_suggestions(self, partial, include_files=False):
+        suggestions = [cmd for cmd in self.commands if cmd.startswith(partial.lower())]
+        if include_files and partial:
+            try:
+                files = [f for f in os.listdir(self.current_path) if f.lower().startswith(partial.lower())]
+                suggestions.extend(files)
+            except Exception:
+                pass
+        return suggestions
 
     def get_dir_size(self, path):
         total = 0
@@ -106,7 +119,7 @@ class FileManager:
         
         item_list = []
         for item in items:
-            item = item.strip().split()[-1] if piped_input else item  # Extract name from piped input
+            item = item.strip().split()[-1] if piped_input else item
             full_path = os.path.join(self.current_path, item)
             if not os.path.exists(full_path):
                 continue
@@ -310,3 +323,78 @@ class FileManager:
         
         print(f"Found {found} match(es)" if found else "No matches found")
         return '\n'.join(output) if output else None
+
+    def compress_item(self, args):
+        src, zipname = args.split(maxsplit=1)
+        src_path = os.path.join(self.current_path, src)
+        zip_path = os.path.join(self.current_path, zipname if zipname.endswith('.zip') else f"{zipname}.zip")
+        if not os.path.exists(src_path):
+            print("Source item not found")
+            return
+
+        print(f"Compressing {src} to {zipname}...")
+        start_time = time.time()
+        total_size = self.get_dir_size(src_path) if os.path.isdir(src_path) else os.path.getsize(src_path)
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            if os.path.isdir(src_path):
+                for root, _, files in os.walk(src_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        zf.write(file_path, os.path.relpath(file_path, self.current_path))
+                        show_progress(file_path, zip_path, total_size, start_time)
+            else:
+                zf.write(src_path, os.path.basename(src_path))
+                show_progress(src_path, zip_path, total_size, start_time)
+        show_progress(src_path, zip_path, total_size, start_time, final=True)
+        print(f"\nCompressed {src} to {zipname}")
+
+    def decompress_item(self, args):
+        zipname, dst = args.split(maxsplit=1)
+        zip_path = os.path.join(self.current_path, zipname)
+        dst_path = os.path.join(self.current_path, dst)
+        if not os.path.exists(zip_path):
+            print("Zip file not found")
+            return
+
+        print(f"Decompressing {zipname} to {dst}...")
+        start_time = time.time()
+        total_size = os.path.getsize(zip_path)
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            zf.extractall(dst_path)
+        show_progress(zip_path, dst_path, total_size, start_time, final=True)
+        print(f"Decompressed {zipname} to {dst}")
+
+    def interactive_mode(self, operation):
+        valid_ops = ["delmany", "copy", "move"]
+        if operation not in valid_ops:
+            print(f"Invalid operation. Use: {', '.join(valid_ops)}")
+            return
+        
+        print(f"\nInteractive {operation} mode. Enter items one per line (empty line to finish):")
+        items = []
+        while True:
+            item = input("Item> ").strip()
+            if not item:
+                break
+            items.append(item)
+        
+        if not items:
+            print("No items selected.")
+            return
+        
+        if operation == "delmany":
+            confirm = input(f"Confirm deletion of {len(items)} item(s)? (y/n): ").lower()
+            if confirm == 'y':
+                self.delete_multiple(' '.join(items))
+        elif operation in ["copy", "move"]:
+            dst = input("Destination> ").strip()
+            if not dst:
+                print("Destination required.")
+                return
+            confirm = input(f"Confirm {operation} of {len(items)} item(s) to {dst}? (y/n): ").lower()
+            if confirm == 'y':
+                for item in items:
+                    if operation == "copy":
+                        self.copy_item(f"{item} {dst}")
+                    elif operation == "move":
+                        self.move_item(f"{item} {dst}")

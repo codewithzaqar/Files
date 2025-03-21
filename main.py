@@ -4,7 +4,15 @@ from config import load_config
 
 def main():
     config = load_config()
-    print(f"Welcome to Files v0.10 (Colors: {'on' if config['use_colors'] else 'off'})")
+    print("""
+        ____________________            
+        ___  ____/__(_)__  /____________
+        __  /_   __  /__  /_  _ \_  ___/
+        _  __/   _  / _  / /  __/(__  ) 
+        /_/      /_/  /_/  \___//____/
+                                    v0.11
+    """)
+    print(f"Welcome to Files (Colors: {'on' if config['use_colors'] else 'off'})")
     print("Type 'help' for commands")
     
     file_manager = FileManager(config)
@@ -38,7 +46,10 @@ def main():
                     continue
                 
                 command = aliases.get(command, command)
-                file_manager.execute_command(command)
+                if command.lower().startswith("interactive"):
+                    file_manager.interactive_mode(command[11:].strip() if len(command) > 11 else "")
+                else:
+                    file_manager.execute_command(command)
             
             if command.lower() == "exit":
                 print("Goodbye!")
@@ -68,10 +79,13 @@ def show_help():
     mkdir <name>  - Create directory
     rename <old> <new> - Rename file/directory
     search <term> [-r] [-c] - Search files (optional -r recursive, -c content)
+    compress <name> <zipname> - Compress file/directory to zip
+    decompress <zipname> <dst> - Decompress zip to directory
     clear         - Clear the screen
     history       - Show command history
+    interactive [delmany|copy|move] - Interactive batch mode
     exit          - Quit the program
-    
+          
     Tip: Type '<command>??' for suggestions
     Pipe: Use '|' to chain commands (e.g., 'dir | search test')
     """)
