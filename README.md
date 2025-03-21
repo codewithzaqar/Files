@@ -1,4 +1,4 @@
-<img src="public/Screenshot 2025-03-21 175817.png">
+<img src="public/logo.jpg">
 
 # Files
 
