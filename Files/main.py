@@ -1,8 +1,8 @@
 import sys
-from file_manager import FileManager
-from config import load_config
+from .file_manager import FileManager
+from .config import load_config
 
-def main():
+def run():
     config = load_config()
     print("""
         ____________________            
@@ -21,11 +21,11 @@ def main():
     
     while True:
         try:
-            command = input("F> ").strip()
+            command = input("FE> ").strip()
             if command:
-                if command.endswith('??'):
-                    base_cmd = command[:-2].strip()
-                    suggestions = file_manager.get_command_suggestions(base_cmd)
+                if command.endswith('?'):
+                    base_cmd = command[:-1].strip()
+                    suggestions = file_manager.get_command_suggestions(base_cmd, include_files=True)
                     if suggestions:
                         print("Suggestions:", ", ".join(suggestions))
                     continue
@@ -34,7 +34,6 @@ def main():
                 if len(command_history) > config.get('history_size', 10):
                     command_history.pop(0)
                 
-                # Basic piping simulation with '|'
                 if '|' in command:
                     commands = [cmd.strip() for cmd in command.split('|')]
                     output = None
@@ -85,10 +84,10 @@ def show_help():
     history       - Show command history
     interactive [delmany|copy|move] - Interactive batch mode
     exit          - Quit the program
-          
-    Tip: Type '<command>??' for suggestions
+    
+    Tip: Type '<command>?' for enhanced suggestions
     Pipe: Use '|' to chain commands (e.g., 'dir | search test')
     """)
 
 if __name__ == "__main__":
-    main()
+    run()
